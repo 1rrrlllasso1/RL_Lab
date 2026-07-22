@@ -159,7 +159,7 @@ if __name__ == "__main__":
     EPISODES = 100000
 
     # 策略选择：0 = 随机策略, 1 = SARSA 策略, 2 = Q-learning 策略, 3 = Policy Gradient 策略
-    state = 2
+    state = 3
 
     # ==================================
 
