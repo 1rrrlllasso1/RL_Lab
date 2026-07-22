@@ -19,6 +19,7 @@ fram_work —— 小车杆强化学习项目的核心框架
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
+import time
 from sarsa import SARSA
 
 
@@ -96,7 +97,12 @@ def run_cartpole(num_episodes: int, agent=None):
 
         # 记录本轮总奖励
         rewards.append(total_reward)
-        print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}")
+        if episode%100==0:
+            print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}")
+
+
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
     # ========== 3. 关闭环境 ==========
     env.close()
@@ -104,17 +110,25 @@ def run_cartpole(num_episodes: int, agent=None):
     return rewards
 
 
-def plot_rewards(rewards: list):
+def plot_rewards(rewards: list, block_size: int = 100):
     """
-    绘制奖励随轮数变化的折线图
+    绘制每 block_size 轮的平均奖励折线图
 
     参数:
-        rewards: 每轮的总奖励列表
+        rewards:   每轮的总奖励列表
+        block_size: 每组包含的轮数（默认 100）
     """
+    # 将 rewards 按 block_size 分组，计算每组的平均奖励
+    avg_rewards = []
+    for i in range(0, len(rewards), block_size):
+        block = rewards[i:i + block_size]
+        avg_rewards.append(sum(block) / len(block))
+
     plt.figure(figsize=(10, 5))
-    plt.plot(range(1, len(rewards) + 1), rewards, marker="o", linestyle="-", color="b")
-    plt.xlabel("轮数 (Episode)")
-    plt.ylabel("总奖励 (Total Reward)")
+    plt.plot(range(1, len(avg_rewards) + 1), avg_rewards,
+             marker="o", linestyle="-", color="b")
+    plt.xlabel(f"n* {block_size} ")
+    plt.ylabel(f"n* {block_size} average reward")
     plt.title("CartPole 训练奖励变化图")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()
@@ -126,7 +140,7 @@ if __name__ == "__main__":
     # ===== 【手动修改】以下两个参数 =====
 
     # 训练总轮数（SARSA 建议 500+ 轮才能看到明显学习效果）
-    EPISODES = 500
+    EPISODES = 20000
 
     # 策略选择：0 = 随机策略, 1 = SARSA 策略
     state = 1
