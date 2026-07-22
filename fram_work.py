@@ -159,7 +159,7 @@ if __name__ == "__main__":
     EPISODES = 100000
 
     # 策略选择：0 = 随机策略, 1 = SARSA 策略, 2 = Q-learning 策略, 3 = Policy Gradient 策略
-    state = 3
+    state = 2
 
     # ==================================
 
@@ -171,7 +171,7 @@ if __name__ == "__main__":
         agent = SARSA(n_bins=40)
         strategy_name = "SARSA"
     elif state == 2:
-        agent = QLearning(n_bins=40)
+        agent = QLearning(n_bins=40,gamma=0.999)
         strategy_name = "Q-learning"
     elif state == 3:
         agent = PolicyGradient(n_bins=40)

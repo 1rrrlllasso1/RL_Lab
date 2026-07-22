@@ -28,7 +28,7 @@ from utils import build_bins, discretize
 
 class QLearning:
     def __init__(self, n_actions: int = 2, alpha: float = 0.1,
-                 gamma: float = 0.999, epsilon: float = 0.1,
+                 gamma: float = 0.99, epsilon: float = 0.1,
                  n_bins=10, ranges=None):
         """
         初始化 Q-learning 算法
