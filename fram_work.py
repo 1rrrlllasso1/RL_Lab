@@ -6,21 +6,24 @@ fram_work —— 小车杆强化学习项目的核心框架
   2. 运行 N 轮循环（episode），每轮进行一次完整测试
   3. 每轮记录总奖励
   4. 绘制 "奖励-轮数" 折线图
-  5. 根据 state 参数选择策略：0=随机, 1=SARSA
+  5. 根据 state 参数选择策略：0=随机, 1=SARSA, 2=Q-learning, 3=Policy Gradient
 
 手动可改参数（在本文件末尾 __main__ 中修改）：
   - EPISODES：训练/测试的总轮数
-  - state：   策略选择（0=随机, 1=SARSA）
+  - state：   策略选择（0=随机, 1=SARSA, 2=Q-learning, 3=Policy Gradient）
 
 当使用随机策略时，每轮仅做随机动作，不学习。
-当使用 SARSA 策略时，智能体在每步更新 Q 表，
+当使用 SARSA / Q-learning 策略时，智能体在每步更新 Q 表，
   理论上随着轮数增加，奖励会逐渐上升。
+使用 Policy Gradient 时，智能体在每轮结束后更新偏好 H 表。
 """
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import time
 from sarsa import SARSA
+from Q_learning import QLearning
+from gradient import PolicyGradient
 
 
 def run_cartpole(num_episodes: int, agent=None):
@@ -36,8 +39,6 @@ def run_cartpole(num_episodes: int, agent=None):
         rewards: 列表，每轮的总奖励
     """
     # ========== 1. 创建环境 ==========
-    # render_mode=None      不显示动画窗口（适合快速跑实验）
-    # render_mode="human"   会弹出一个窗口显示小车杆动画（需安装 pygame）
     env = gym.make("CartPole-v1", render_mode="None")
 
     # 记录每轮的总奖励
@@ -45,63 +46,78 @@ def run_cartpole(num_episodes: int, agent=None):
 
     # ========== 2. 主循环 ==========
     for episode in range(1, num_episodes + 1):
+        # ===== 最后一轮：切换到 human 模式，关闭探索 =====
+        is_last_episode = (episode == num_episodes)
+        if is_last_episode:
+            env.close()
+            env = gym.make("CartPole-v1", render_mode="human")
+            if agent is not None:
+                agent.set_epsilon(0.0)  # 完全利用已学策略
+
         # 重置环境，开始新的一轮
-        # obs = [cart_pos, cart_vel, pole_angle, pole_angular_vel]
         obs, _ = env.reset()
 
-        total_reward = 0.0      # 本轮累计奖励
-        terminated = False      # 杆子倒下、小车超出边界、到达终点时变为 true
-        truncated = False       # 是否达到步数限制（CartPole-v1 最大步数 = 500）
-                                # 两者都为 True 时本轮结束
+        total_reward = 0.0
+        terminated = False
+        truncated = False
 
         # =========================================================
         #  策略分支：agent=None → 随机策略；agent≠None → 算法策略
         # =========================================================
         if agent is None:
-            # ---------- 随机策略（每步随机选动作，不学习） ----------
+            # ---------- 随机策略 ----------
             while not terminated and not truncated:
                 action = env.action_space.sample()
+                if is_last_episode:
+                    time.sleep(0.04)
                 obs, reward, terminated, truncated, _ = env.step(action)
                 total_reward += reward
 
         else:
-            # ---------- 算法策略（如 SARSA，每步选择+更新） ----------
-            # 注：SARSA 是 on-policy 算法，需要先选好第一步的动作
-            #     才能进入循环（因为更新时需要 (S,A,R,S',A') 四元组）
+            # ---------- 算法策略（SARSA / Q-learning） ----------
+            from sarsa import SARSA
+            is_sarsa = isinstance(agent, SARSA)
+
             state = agent.obs_to_state(obs)
             action = agent.choose_action(state)
 
             while not terminated and not truncated:
-                # 执行动作，获取结果
+                if is_last_episode:
+                    time.sleep(0.04)
+
                 obs_next, reward, terminated, truncated, _ = env.step(action)
 
                 total_reward += reward
                 done = terminated or truncated
 
                 if not done:
-                    # 用当前策略选下一个动作 A'（这就是 SARSA 中第二个 A）
                     state_next = agent.obs_to_state(obs_next)
+                    # 行为策略：用 ε-greedy 选下一个动作（SARSA 和 Q-learning 都需要）
                     action_next = agent.choose_action(state_next)
                 else:
-                    # 本轮结束，没有下一步了
                     state_next = None
                     action_next = None
 
-                # SARSA 更新：Q(S,A) ← Q(S,A) + α[R + γQ(S',A') - Q(S,A)]
-                agent.update(state, action, reward,
-                             state_next, action_next, done)
+                if is_sarsa:
+                    # SARSA: 更新用 Q(S',A')，需要 next_action
+                    agent.update(state, action, reward,
+                                 state_next, action_next, done)
+                else:
+                    # Q-learning: 更新用 max_a Q(S',a)，不需要 next_action
+                    agent.update(state, action, reward,
+                                 state_next, done)
 
-                # 前进一步：S ← S', A ← A'
                 state = state_next
                 action = action_next
 
         # 记录本轮总奖励
         rewards.append(total_reward)
-        if episode%100==0:
+        if episode % 100 == 0:
             print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}")
 
 
 #-------------------------------------------------------------------------------
+    
 #-------------------------------------------------------------------------------
 
     # ========== 3. 关闭环境 ==========
@@ -140,10 +156,10 @@ if __name__ == "__main__":
     # ===== 【手动修改】以下两个参数 =====
 
     # 训练总轮数（SARSA 建议 500+ 轮才能看到明显学习效果）
-    EPISODES = 20000
+    EPISODES = 100000
 
-    # 策略选择：0 = 随机策略, 1 = SARSA 策略
-    state = 1
+    # 策略选择：0 = 随机策略, 1 = SARSA 策略, 2 = Q-learning 策略, 3 = Policy Gradient 策略
+    state = 3
 
     # ==================================
 
@@ -152,10 +168,16 @@ if __name__ == "__main__":
         agent = None
         strategy_name = "随机策略"
     elif state == 1:
-        agent = SARSA()
+        agent = SARSA(n_bins=40)
         strategy_name = "SARSA"
+    elif state == 2:
+        agent = QLearning(n_bins=40)
+        strategy_name = "Q-learning"
+    elif state == 3:
+        agent = PolicyGradient(n_bins=40)
+        strategy_name = "Policy Gradient"
     else:
-        raise ValueError(f"未知的策略编号 state={state}，请使用 0(随机) 或 1(SARSA)")
+        raise ValueError(f"未知的策略编号 state={state}，请使用 0(随机), 1(SARSA), 2(Q-learning) 或 3(Policy Gradient)")
 
     # 运行主循环
     print(f"开始运行 CartPole，共 {EPISODES} 轮，当前策略: {strategy_name}\n")

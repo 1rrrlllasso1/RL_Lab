@@ -13,7 +13,8 @@ SARSA 是在线策略（on-policy）算法：更新时使用的下一个动作 A
     alpha   学习率，控制每次更新的步长 (默认 0.1)
     gamma   折扣因子，衡量未来奖励的重要性 (默认 0.99)
     epsilon ε-greedy 中的探索率 (默认 0.1)
-    n_bins  每个观测维度离散化的分箱数 (默认 10)
+    n_bins  每个观测维度离散化的分箱数，传 int 统一指定或传 list of 4 分别指定 (默认 10)
+    ranges  每个维度的取值范围，list of 4 (lo, hi) 或 None 使用默认值
 
 使用方法：
     agent = SARSA()                           # 创建 SARSA 智能体
@@ -27,8 +28,8 @@ from utils import build_bins, discretize
 
 class SARSA:
     def __init__(self, n_actions: int = 2, alpha: float = 0.1,
-                 gamma: float = 0.99, epsilon: float = 0.1,
-                 n_bins: int = 10):
+                 gamma: float = 0.999, epsilon: float = 0.1,
+                 n_bins=10, ranges=None):
         """
         初始化 SARSA 算法
 
@@ -37,23 +38,35 @@ class SARSA:
             alpha:     学习率 —— 【手动可改】
             gamma:     折扣因子 —— 【手动可改】
             epsilon:   探索率  —— 【手动可改】
-            n_bins:    每个观测维度离散化时的分箱数
+            n_bins:    每个观测维度离散化时的分箱数。
+                       int 则所有维度相同；list of 4 则分别为
+                       [pos, vel, angle, ang_vel] 指定不同分箱数。
+            ranges:    每个维度的取值范围，list of 4 (lo, hi) 或
+                       None（使用默认值）。
         """
         self.n_actions = n_actions
         self.alpha = alpha          # 【手动可改】学习率 (0 < alpha ≤ 1)
         self.gamma = gamma          # 【手动可改】折扣因子 (0 ≤ gamma ≤ 1)
         self.epsilon = epsilon      # 【手动可改】探索率 (0 ≤ epsilon ≤ 1)
-        self.n_bins = n_bins
+        self.n_bins = n_bins        # 【手动可改】分箱数 (内存：仅此一次哦)
+
+        # ========== 展开 n_bins 为各维度列表 ==========
+        if isinstance(n_bins, int):
+            self._n_bins_list = [n_bins] * 4
+        else:
+            self._n_bins_list = list(n_bins)
 
         # ========== Q 表 ==========
         # 形状：(状态总数, 动作数)
-        # 状态总数 = n_bins^4（因为 4 个观测维度各分 n_bins 个区间）
-        total_states = n_bins ** 4
+        # 状态总数 = Π n_i（各维度分箱数之积）
+        total_states = 1
+        for nb in self._n_bins_list:
+            total_states *= nb
         self.Q = np.zeros((total_states, n_actions))
 
         # ========== 离散化分箱边界 ==========
-        # 由 utils.build_bins 统一构建，保证各算法类使用相同的离散化方式
-        self.bins = build_bins(n_bins)
+        # 由 utils.build_bins 统一构建，支持自定义范围和分箱数
+        self.bins = build_bins(self._n_bins_list, ranges)
 
     # ---------- 公开方法 ----------
 
@@ -112,6 +125,18 @@ class SARSA:
         self.Q[state_idx, action] += self.alpha * (target - current_q)
 
     # ---------- 辅助方法 ----------
+
+    def set_epsilon(self, epsilon: float):
+        """
+        动态调整探索率 ε。
+
+        可在训练过程中调用，实现 ε 衰减（exploration decay）：
+        例如每 500 轮减小一次探索率，让智能体逐渐从探索转向利用。
+
+        参数:
+            epsilon: 新的探索率，范围 [0, 1]
+        """
+        self.epsilon = max(0.0, min(1.0, epsilon))
 
     def obs_to_state(self, observation):
         """
