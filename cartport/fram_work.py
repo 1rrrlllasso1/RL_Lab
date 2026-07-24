@@ -6,16 +6,17 @@ fram_work —— 小车杆强化学习项目的核心框架
   2. 运行 N 轮循环（episode），每轮进行一次完整测试
   3. 每轮记录总奖励
   4. 绘制 "奖励-轮数" 折线图
-  5. 根据 state 参数选择策略：0=随机, 1=SARSA, 2=Q-learning, 3=Policy Gradient
+  5. 根据 state 参数选择策略：0=随机, 1=SARSA, 2=Q-learning, 3=Policy Gradient, 4=DQN
 
 手动可改参数（在本文件末尾 __main__ 中修改）：
   - EPISODES：训练/测试的总轮数
-  - state：   策略选择（0=随机, 1=SARSA, 2=Q-learning, 3=Policy Gradient）
+  - state：   策略选择（0=随机, 1=SARSA, 2=Q-learning, 3=Policy Gradient, 4=DQN）
 
 当使用随机策略时，每轮仅做随机动作，不学习。
 当使用 SARSA / Q-learning 策略时，智能体在每步更新 Q 表，
   理论上随着轮数增加，奖励会逐渐上升。
 使用 Policy Gradient 时，智能体在每轮结束后更新偏好 H 表。
+使用 DQN 时，智能体通过神经网络拟合 Q 函数，利用经验回放训练网络。
 """
 
 import gymnasium as gym
@@ -24,6 +25,7 @@ import time
 from sarsa import SARSA
 from Q_learning import QLearning
 from gradient import PolicyGradient
+from dqn import DQN
 
 
 def run_cartpole(num_episodes: int, agent=None):
@@ -158,8 +160,8 @@ if __name__ == "__main__":
     # 训练总轮数（SARSA 建议 500+ 轮才能看到明显学习效果）
     EPISODES = 15000
 
-    # 策略选择：0 = 随机策略, 1 = SARSA 策略, 2 = Q-learning 策略, 3 = Policy Gradient 策略
-    state = 3
+    # 策略选择：0 = 随机策略, 1 = SARSA, 2 = Q-learning, 3 = Policy Gradient, 4 = DQN
+    state = 4
 
     # ==================================
 
@@ -176,8 +178,11 @@ if __name__ == "__main__":
     elif state == 3:
         agent = PolicyGradient(n_bins=40)
         strategy_name = "Policy Gradient"
+    elif state == 4:
+        agent = DQN()
+        strategy_name = "DQN"
     else:
-        raise ValueError(f"未知的策略编号 state={state}，请使用 0(随机), 1(SARSA), 2(Q-learning) 或 3(Policy Gradient)")
+        raise ValueError(f"未知的策略编号 state={state}，请使用 0(随机), 1(SARSA), 2(Q-learning), 3(Policy Gradient) 或 4(DQN)")
 
     # 运行主循环
     print(f"开始运行 CartPole，共 {EPISODES} 轮，当前策略: {strategy_name}\n")
