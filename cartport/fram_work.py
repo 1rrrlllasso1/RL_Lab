@@ -145,7 +145,7 @@ def plot_rewards(rewards: list, block_size: int = 100):
              marker="o", linestyle="-", color="b")
     plt.xlabel(f"n* {block_size} ")
     plt.ylabel(f"n* {block_size} average reward")
-    plt.title("CartPole 训练奖励变化图")
+    plt.title("CartPole Average Reward per Block")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()
     plt.show()
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     # ===== 【手动修改】以下两个参数 =====
 
     # 训练总轮数（SARSA 建议 500+ 轮才能看到明显学习效果）
-    EPISODES = 100000
+    EPISODES = 15000
 
     # 策略选择：0 = 随机策略, 1 = SARSA 策略, 2 = Q-learning 策略, 3 = Policy Gradient 策略
     state = 3
