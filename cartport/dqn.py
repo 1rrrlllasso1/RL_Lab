@@ -22,6 +22,9 @@ DQN —— 深度 Q 网络算法类
     agent.update(obs, a, r, next_obs, done)             # 存储经验并训练网络
 """
 
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -31,7 +34,7 @@ from utils import ReplayBuffer
 
 class DQN:
     def __init__(self, n_actions: int = 2, alpha: float = 0.001,
-                 gamma: float = 0.99, epsilon: float = 0.1,
+                 gamma: float = 0.999, epsilon: float = 0.1,
                  hidden_dim: int = 128, buffer_size: int = 50000,
                  batch_size: int = 64, target_update_freq: int = 100):
         """

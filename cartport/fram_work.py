@@ -19,6 +19,12 @@ fram_work —— 小车杆强化学习项目的核心框架
 使用 DQN 时，智能体通过神经网络拟合 Q 函数，利用经验回放训练网络。
 """
 
+# ===== 修复 Windows 上 PyTorch + NumPy(MKL) 的 OpenMP DLL 冲突 =====
+# 必须在所有其他 import 之前设置，否则 sarsa/gradient 等模块导入 numpy
+# 时就会加载 libiomp5md.dll，等到导入 torch 时就会冲突崩溃
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import time
@@ -41,7 +47,7 @@ def run_cartpole(num_episodes: int, agent=None):
         rewards: 列表，每轮的总奖励
     """
     # ========== 1. 创建环境 ==========
-    env = gym.make("CartPole-v1", render_mode="None")
+    env = gym.make("CartPole-v1", render_mode=None)
 
     # 记录每轮的总奖励
     rewards = []
@@ -114,8 +120,16 @@ def run_cartpole(num_episodes: int, agent=None):
 
         # 记录本轮总奖励
         rewards.append(total_reward)
-        if episode % 100 == 0:
-            print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}")
+
+        # DQN 每轮都打印日志；其他算法按间隔打印
+        from dqn import DQN
+        is_dqn = isinstance(agent, DQN)
+        if is_dqn:
+            print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}", flush=True)
+        elif episode % 100 == 0:
+            print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}", flush=True)
+        elif episode <= 10 or episode % 50 == 0:
+            print(f"[第 {episode:3d} 轮]  总奖励 = {total_reward}", flush=True)
 
 
 #-------------------------------------------------------------------------------
@@ -158,7 +172,7 @@ if __name__ == "__main__":
     # ===== 【手动修改】以下两个参数 =====
 
     # 训练总轮数（SARSA 建议 500+ 轮才能看到明显学习效果）
-    EPISODES = 15000
+    EPISODES = 500
 
     # 策略选择：0 = 随机策略, 1 = SARSA, 2 = Q-learning, 3 = Policy Gradient, 4 = DQN
     state = 4
@@ -185,11 +199,14 @@ if __name__ == "__main__":
         raise ValueError(f"未知的策略编号 state={state}，请使用 0(随机), 1(SARSA), 2(Q-learning), 3(Policy Gradient) 或 4(DQN)")
 
     # 运行主循环
-    print(f"开始运行 CartPole，共 {EPISODES} 轮，当前策略: {strategy_name}\n")
+    print(f"开始运行 CartPole，共 {EPISODES} 轮，当前策略: {strategy_name}\n", flush=True)
     rewards = run_cartpole(EPISODES, agent)
 
-    # 绘制折线图
-    plot_rewards(rewards)
+    # 绘制折线图（DQN 每回合都画，其他算法按 block 平均）
+    if state == 4:
+        plot_rewards(rewards, block_size=1)
+    else:
+        plot_rewards(rewards)
 
     # 打印统计信息
     print(f"\n=== 统计 ===")
