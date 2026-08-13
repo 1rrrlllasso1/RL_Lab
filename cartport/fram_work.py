@@ -100,22 +100,20 @@ def run_cartpole(num_episodes: int, agent=None):
                 total_reward += reward
                 done = terminated or truncated
 
-                if not done:
-                    state_next = agent.obs_to_state(obs_next)
-                    # 行为策略：用 ε-greedy 选下一个动作（SARSA 和 Q-learning 都需要）
-                    action_next = agent.choose_action(state_next)
-                else:
-                    state_next = None
-                    action_next = None
+                state_next = agent.obs_to_state(obs_next) if not done else None
 
                 if is_sarsa:
-                    # SARSA: 更新用 Q(S',A')，需要 next_action
+                    # SARSA: 更新用 Q(S',A')，必须先选好 next_action 再更新
+                    action_next = agent.choose_action(state_next) if not done else None
                     agent.update(state, action, reward,
                                  state_next, action_next, done)
                 else:
-                    # Q-learning: 更新用 max_a Q(S',a)，不需要 next_action
+                    # Q-learning / PolicyGradient / DQN / PPO：
+                    # 先更新再选下一个动作。若先 choose_action(s')，会覆盖 PPO 暂存的
+                    # _last_logprob，导致缓冲区里 (s,a) 配到 logπ(a'|s')，重要性比率算错。
                     agent.update(state, action, reward,
                                  state_next, done)
+                    action_next = agent.choose_action(state_next) if not done else None
 
                 state = state_next
                 action = action_next
@@ -176,7 +174,7 @@ if __name__ == "__main__":
     # ===== 【手动修改】以下两个参数 =====
 
     # 训练总轮数（SARSA 建议 500+ 轮才能看到明显学习效果）
-    EPISODES = 500
+    EPISODES = 10000
 
     # 策略选择：0 = 随机策略, 1 = SARSA, 2 = Q-learning, 3 = Policy Gradient, 4 = DQN, 5 = PPO
     state = 5
@@ -209,8 +207,8 @@ if __name__ == "__main__":
     print(f"开始运行 CartPole，共 {EPISODES} 轮，当前策略: {strategy_name}\n", flush=True)
     rewards = run_cartpole(EPISODES, agent)
 
-    # 绘制折线图（DQN / PPO 每回合都画，其他算法按 block 平均）
-    if state in (4, 5):
+    # 绘制折线图（DQN 每回合都画；其他算法含 PPO 复用 plot_rewards 默认的每 100 回合平均）
+    if state == 4:
         plot_rewards(rewards, block_size=1)
     else:
         plot_rewards(rewards)
