@@ -66,7 +66,7 @@ class DQN:
         self.q_network = self._build_network(hidden_dim)
         # 目标网络：用于计算 TD target，参数定期从预测网络复制
         self.target_network = self._build_network(hidden_dim)
-        self.target_network.load_state_dict(self.q_network.state_dict())
+        self.target_network.load_state_dict(self.q_network.state_dict())    #复制目标网络参数
 
         # ========== 优化器（Adam） ==========
         # Adam 优化器，自适应学习率，适合训练神经网络
