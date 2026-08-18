@@ -72,9 +72,9 @@ from torch.distributions import Categorical
 
 class PPO:
     def __init__(self, n_actions: int = 2, alpha: float = 3e-4,
-                 gamma: float = 0.99, lam: float = 0.95,
-                 clip_ratio: float = 0.2, epochs: int = 10,
-                 rollout_steps: int = 1024, batch_size: int = 64,
+                 gamma: float = 0.99, lam: float = 0.7,
+                 clip_ratio: float = 0.1, epochs: int = 10,
+                 rollout_steps: int = 2048, batch_size: int = 256,
                  hidden_dim: int = 128, entropy_coef: float = 0.01,
                  epsilon: float = 0.1):
         """

@@ -5,6 +5,7 @@ utils —— 工具函数模块
 当前包含：
   - build_bins() : 为连续状态离散化构建分箱边界
   - discretize() : 将连续观测值转换为离散状态索引
+  - plot_rewards(): 绘制"每多少回合的平均奖励"折线图（横坐标分组窗口可手动设置）
   - ReplayBuffer : 经验回放缓冲区（供 DQN 等神经网络算法使用）
 
 设计原则：函数无副作用，输入输出清晰，可被多个算法类复用。
@@ -13,6 +14,7 @@ utils —— 工具函数模块
 import random
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
 
 def build_bins(n_bins=10, ranges=None):
@@ -78,6 +80,39 @@ def discretize(observation, bins):
         state_idx = state_idx * n_bins + bin_idx
 
     return state_idx
+
+
+def plot_rewards(rewards: list, block_size: int = 100):
+    """
+    绘制每 block_size 轮的平均奖励折线图。
+
+    横坐标 = 每多少回合的平均奖励：将 rewards 按 block_size 分组，
+    每组计算平均奖励后画一个点。block_size 越小越能看清每轮的细节，
+    越大越能看清整体学习趋势。
+
+    参数:
+        rewards:   每轮的总奖励列表
+        block_size: 每组包含的轮数（横坐标 = 每多少回合的平均奖励），
+                    传 None 或小于 1 时按 1 处理（即每回合一个点）
+    """
+    if block_size is None or block_size < 1:
+        block_size = 1
+
+    # 将 rewards 按 block_size 分组，计算每组的平均奖励
+    avg_rewards = []
+    for i in range(0, len(rewards), block_size):
+        block = rewards[i:i + block_size]
+        avg_rewards.append(sum(block) / len(block))
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, len(avg_rewards) + 1), avg_rewards,
+             marker="o", linestyle="-", color="b")
+    plt.xlabel(f"Block index (each point = avg of {block_size} episodes)")
+    plt.ylabel("Average reward")
+    plt.title("CartPole Average Reward per Block")
+    plt.grid(True, linestyle="--", alpha=0.6)
+    plt.tight_layout()
+    plt.show()
 
 
 # ============================================================
